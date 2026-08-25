@@ -1,0 +1,74 @@
+:root{
+  --ground:#f2e9db;
+  --panel:#e7dac2;
+  --panel-raised:#ddccaa;
+  --ink:#2a2119;
+  --ink-dim:#6b5d4d;
+  --accent:#b5651d;
+  --accent-strong:#9a5216;
+  --accent-ink:#fbf3e6;
+  --good:#4f7a35;
+  --good-ink:#f4faee;
+  --bad:#a03a26;
+  --bad-ink:#fdf1ee;
+  --line:rgba(42,33,25,0.16);
+  --shadow:0 1px 0 rgba(42,33,25,0.06);
+  --radius-hw:10px;
+  --radius-sm:6px;
+  --focus:#3d6bb3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#181310;
+    --panel:#241d18;
+    --panel-raised:#302620;
+    --ink:#ece3d6;
+    --ink-dim:#a89a89;
+    --accent:#e2934f;
+    --accent-strong:#f0a962;
+    --accent-ink:#241304;
+    --good:#8bbf67;
+    --good-ink:#12210a;
+    --bad:#e2705a;
+    --bad-ink:#2a0d07;
+    --line:rgba(236,227,214,0.13);
+    --shadow:0 1px 0 rgba(0,0,0,0.4);
+    --focus:#7fb0f0;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#181310;
+  --panel:#241d18;
+  --panel-raised:#302620;
+  --ink:#ece3d6;
+  --ink-dim:#a89a89;
+  --accent:#e2934f;
+  --accent-strong:#f0a962;
+  --accent-ink:#241304;
+  --good:#8bbf67;
+  --good-ink:#12210a;
+  --bad:#e2705a;
+  --bad-ink:#2a0d07;
+  --line:rgba(236,227,214,0.13);
+  --shadow:0 1px 0 rgba(0,0,0,0.4);
+  --focus:#7fb0f0;
+}
+
+*{box-sizing:border-box;}
+html,body,#root{margin:0;padding:0;height:100%;}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--accent);color:var(--accent-ink);}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+}
+
+h1,h2,h3{font-family:"Fraunces",Georgia,serif;text-wrap:balance;margin:0;}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace; font-variant-numeric: tabular-nums;}
+button{font:inherit;}
