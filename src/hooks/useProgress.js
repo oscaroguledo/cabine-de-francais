@@ -1,70 +1,101 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getDb, persist as persistDb } from "../db/sqlite";
 
-const STORAGE_KEY = "cabine_progress_v1";
-const STREAK_KEY = "cabine_best_streak";
-
-function loadProgress() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    return {};
+function readAllProgress(db) {
+  const result = {};
+  const res = db.exec("SELECT word_number, correct, wrong, mastered, avg_score FROM progress");
+  if (res.length) {
+    for (const [wordNumber, correct, wrong, mastered, avgScore] of res[0].values) {
+      result[wordNumber] = { correct, wrong, mastered: !!mastered, avgScore };
+    }
   }
+  return result;
 }
 
+function readBestStreak(db) {
+  const res = db.exec("SELECT value FROM meta WHERE key='best_streak'");
+  if (res.length && res[0].values.length) {
+    return parseInt(res[0].values[0][0], 10) || 0;
+  }
+  return 0;
+}
+
+/**
+ * Progress is backed by a real SQLite database (sql.js, WASM), persisted to
+ * IndexedDB — durable across reloads/browser restarts, unlike the plain
+ * localStorage this replaced. See src/db/sqlite.js for the storage layer and
+ * the "Download database" control (Readiness view) for a portable .sqlite
+ * export of the same data.
+ */
 export function useProgress() {
-  const [progress, setProgress] = useState(loadProgress);
-  const progressRef = useRef(progress);
-  progressRef.current = progress;
+  const [ready, setReady] = useState(false);
+  const [progress, setProgress] = useState({});
+  const [bestStreak, setBestStreak] = useState(0);
+  const dbRef = useRef(null);
+  const pendingRef = useRef([]); // writes that arrive before the WASM DB finishes loading
 
-  const persist = useCallback((next) => {
-    setProgress(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch (e) {
-      /* private mode / storage disabled — practice still works, just not saved */
-    }
+  useEffect(() => {
+    let cancelled = false;
+    getDb().then((db) => {
+      if (cancelled) return;
+      dbRef.current = db;
+      for (const apply of pendingRef.current) apply(db);
+      pendingRef.current = [];
+      setProgress(readAllProgress(db));
+      setBestStreak(readBestStreak(db));
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const recordAnswer = useCallback(
-    (wordNumber, isCorrect, rawScore = isCorrect ? 1 : 0) => {
-      const current = progressRef.current;
-      const entry = current[wordNumber] || { correct: 0, wrong: 0, mastered: false, avgScore: null };
-      const nextEntry = { ...entry };
-      // exponential moving average — bounded storage, recent attempts weighted higher
-      nextEntry.avgScore =
-        typeof entry.avgScore === "number" ? entry.avgScore * 0.7 + rawScore * 0.3 : rawScore;
+  const recordAnswer = useCallback((wordNumber, isCorrect, rawScore = isCorrect ? 1 : 0) => {
+    const apply = (db) => {
+      const res = db.exec(`SELECT correct, wrong, avg_score FROM progress WHERE word_number = ${Number(wordNumber)}`);
+      let correct = 0;
+      let wrong = 0;
+      let avgScore = null;
+      if (res.length && res[0].values.length) {
+        [correct, wrong, avgScore] = res[0].values[0];
+      }
+      const nextAvg = typeof avgScore === "number" ? avgScore * 0.7 + rawScore * 0.3 : rawScore;
+      let nextCorrect = correct;
+      let nextWrong = wrong;
+      let mastered;
       if (isCorrect) {
-        nextEntry.correct += 1;
-        nextEntry.mastered = nextEntry.correct >= 3 && nextEntry.correct >= nextEntry.wrong * 2;
+        nextCorrect += 1;
+        mastered = nextCorrect >= 3 && nextCorrect >= nextWrong * 2;
       } else {
-        nextEntry.wrong += 1;
-        nextEntry.mastered = false;
+        nextWrong += 1;
+        mastered = false;
       }
-      persist({ ...current, [wordNumber]: nextEntry });
-    },
-    [persist]
-  );
-
-  const getBestStreak = useCallback(() => {
-    try {
-      return parseInt(localStorage.getItem(STREAK_KEY) || "0", 10);
-    } catch (e) {
-      return 0;
-    }
+      db.run(
+        "INSERT OR REPLACE INTO progress (word_number, correct, wrong, mastered, avg_score, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        [Number(wordNumber), nextCorrect, nextWrong, mastered ? 1 : 0, nextAvg, new Date().toISOString()]
+      );
+      persistDb(db);
+      setProgress((prev) => ({
+        ...prev,
+        [wordNumber]: { correct: nextCorrect, wrong: nextWrong, mastered, avgScore: nextAvg },
+      }));
+    };
+    if (dbRef.current) apply(dbRef.current);
+    else pendingRef.current.push(apply);
   }, []);
 
-  const reportStreak = useCallback(
-    (streak) => {
-      const best = getBestStreak();
-      if (streak > best) {
-        try {
-          localStorage.setItem(STREAK_KEY, String(streak));
-        } catch (e) {}
+  const reportStreak = useCallback((streak) => {
+    const apply = (db) => {
+      const current = readBestStreak(db);
+      if (streak > current) {
+        db.run("INSERT OR REPLACE INTO meta (key, value) VALUES ('best_streak', ?)", [String(streak)]);
+        persistDb(db);
+        setBestStreak(streak);
       }
-    },
-    [getBestStreak]
-  );
+    };
+    if (dbRef.current) apply(dbRef.current);
+    else pendingRef.current.push(apply);
+  }, []);
 
-  return { progress, recordAnswer, getBestStreak, reportStreak };
+  return { progress, recordAnswer, bestStreak, reportStreak, ready, db: dbRef };
 }

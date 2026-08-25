@@ -1,5 +1,6 @@
 import { CHAPTER_NAMES } from "../data/chapters";
 import { TCF_CLB_TABLE, TEF_CLB_TABLE } from "../data/clb";
+import DataBackup from "./DataBackup";
 
 const METRIC_INFO = [
   { key: "coveragePct", label: "Coverage", d: "% of the 784-word corpus you've attempted at least once" },
@@ -8,7 +9,7 @@ const METRIC_INFO = [
   { key: "accuracyPct", label: "Accuracy", d: "Rolling average of how closely your spoken answers matched, across attempts" },
 ];
 
-export default function Readiness({ report, onBack }) {
+export default function Readiness({ report, onBack, db }) {
   const { score, band, perChapter } = report;
 
   return (
@@ -67,6 +68,8 @@ export default function Readiness({ report, onBack }) {
         CLB is only ever assigned by IRCC from an actual test score. See the full multi-skill
         Roadmap for what closes the rest of the gap.
       </p>
+
+      <DataBackup db={db} />
 
       <div className="section-label">By chapter</div>
       <div className="chapter-breakdown">

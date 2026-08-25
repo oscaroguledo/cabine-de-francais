@@ -22,7 +22,7 @@ import C2Grammar from "./components/C2Grammar";
 const THEMES = ["auto", "light", "dark"];
 
 export default function App() {
-  const { progress, recordAnswer, getBestStreak, reportStreak } = useProgress();
+  const { progress, recordAnswer, bestStreak, reportStreak, db } = useProgress();
   const { mode: themeMode, setTheme } = useTheme();
   const { speak } = useSpeechSynthesis();
 
@@ -117,7 +117,7 @@ export default function App() {
           progress={progress}
           mode={mode}
           setMode={setMode}
-          bestStreak={getBestStreak()}
+          bestStreak={bestStreak}
           onStartChapter={startChapter}
           onStartMixed={startMixed}
           onNavigate={handleNavigate}
@@ -148,7 +148,7 @@ export default function App() {
         />
       )}
 
-      {view === "readiness" && <Readiness report={report} onBack={() => setView("home")} />}
+      {view === "readiness" && <Readiness report={report} onBack={() => setView("home")} db={db} />}
 
       {view === "grammar" && <Grammar onBack={() => setView("home")} />}
 
