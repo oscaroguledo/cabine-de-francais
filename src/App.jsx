@@ -93,10 +93,11 @@ export default function App() {
             Cabine <span className="accent-word">de Français</span>
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="topbar-controls">
           {view !== "readiness" && (
             <button className="readiness-link" onClick={() => setView("readiness")}>
-              Readiness report — {report.score}
+              <span className="readiness-link-full">Readiness report — {report.score}</span>
+              <span className="readiness-link-short">Score: {report.score}</span>
             </button>
           )}
           <div className="theme-toggle" role="group" aria-label="Theme">
