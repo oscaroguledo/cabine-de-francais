@@ -28,17 +28,29 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
   const missedRef = useRef([]);
 
   const recognition = useSpeechRecognition({
-    onInterim: (text) => setInterimText(text),
+    onInterim: (text) => {
+      setMicNotice("");
+      setInterimText(text);
+    },
     onFinalResult: (text) => {
       setHeardText(text);
       setInterimText("");
       judge(text);
     },
+    onNoResult: () => {
+      setMicNotice("Didn't catch a clear answer — tap the mic and try again, speaking right after you tap.");
+    },
     onError: (err) => {
       if (err === "not-allowed" || err === "service-not-allowed") {
         setMicNotice("Microphone access was blocked — allow it in your browser to speak your answers, or type instead below.");
       } else if (err === "no-speech") {
-        setMicNotice("Didn't catch that — tap and try again.");
+        setMicNotice("Didn't catch that — tap the mic and try again.");
+      } else if (err === "network") {
+        setMicNotice("Speech recognition needs an internet connection — check yours and try again.");
+      } else if (err === "aborted") {
+        /* user-initiated stop; not an error worth surfacing */
+      } else {
+        setMicNotice(`Speech recognition hit an error (${err}) — try again, or type your answer below.`);
       }
     },
   });
@@ -148,14 +160,16 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
             <button
               className="mic-btn"
               data-state={!recognition.supported ? "disabled" : recognition.listening ? "listening" : "idle"}
-              aria-label="Hold to speak"
-              onMouseDown={() => recognition.start(current.fr)}
-              onMouseUp={() => recognition.stop()}
-              onTouchStart={(e) => {
-                e.preventDefault();
-                recognition.start(current.fr);
+              aria-label={recognition.listening ? "Stop and check my answer" : "Tap to speak"}
+              onClick={() => {
+                if (recognition.listening) {
+                  recognition.stop();
+                } else {
+                  setMicNotice("");
+                  setHeardText("");
+                  recognition.start(current.fr);
+                }
               }}
-              onTouchEnd={() => recognition.stop()}
               disabled={!recognition.supported}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -168,10 +182,10 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
           </div>
           <div className="mic-caption">
             {recognition.listening
-              ? "Listening…"
+              ? "Listening — tap the mic again when you're done"
               : mode === "translate"
-              ? "Tap the mic and say it in French"
-              : "Play it, then repeat what you heard"}
+              ? "Tap the mic, then say it in French"
+              : "Play it, then tap the mic and repeat what you heard"}
           </div>
           <div className="heard mono">
             {interimText ? (
