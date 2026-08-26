@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Waveform from "./Waveform";
-import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { useWhisperRecognition } from "../hooks/useWhisperRecognition";
 import { useLocalAudio } from "../hooks/useLocalAudio";
 import { scoreAnswer } from "../utils/match";
 
@@ -27,11 +27,7 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
   const [micNotice, setMicNotice] = useState("");
   const missedRef = useRef([]);
 
-  const recognition = useSpeechRecognition({
-    onInterim: (text) => {
-      setMicNotice("");
-      setInterimText(text);
-    },
+  const recognition = useWhisperRecognition({
     onFinalResult: (text) => {
       setHeardText(text);
       setInterimText("");
@@ -41,14 +37,10 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
       setMicNotice("Didn't catch a clear answer — tap the mic and try again, speaking right after you tap.");
     },
     onError: (err) => {
-      if (err === "not-allowed" || err === "service-not-allowed") {
+      if (err === "not-allowed") {
         setMicNotice("Microphone access was blocked — allow it in your browser to speak your answers, or type instead below.");
-      } else if (err === "no-speech") {
-        setMicNotice("Didn't catch that — tap the mic and try again.");
-      } else if (err === "network") {
-        setMicNotice("Speech recognition needs an internet connection — check yours and try again.");
-      } else if (err === "aborted") {
-        /* user-initiated stop; not an error worth surfacing */
+      } else if (err === "model-loading") {
+        setMicNotice("Still finishing the one-time speech model download — try again in a few seconds.");
       } else {
         setMicNotice(`Speech recognition hit an error (${err}) — try again, or type your answer below.`);
       }
@@ -57,8 +49,13 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
 
   useEffect(() => {
     if (!recognition.supported) {
-      setMicNotice("Your browser doesn't support speech recognition — typing mode is active instead.");
+      setMicNotice("Your browser doesn't support the microphone/audio APIs this needs — typing mode is active instead.");
+    } else {
+      // Start the one-time model download as soon as the booth opens, so
+      // it's likely ready by the time the learner actually taps the mic.
+      recognition.preload();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recognition.supported]);
 
   useEffect(() => {
@@ -159,7 +156,13 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
             <Waveform active={recognition.listening} />
             <button
               className="mic-btn"
-              data-state={!recognition.supported ? "disabled" : recognition.listening ? "listening" : "idle"}
+              data-state={
+                !recognition.supported || recognition.processing || recognition.modelState !== "ready"
+                  ? "disabled"
+                  : recognition.listening
+                  ? "listening"
+                  : "idle"
+              }
               aria-label={recognition.listening ? "Stop and check my answer" : "Tap to speak"}
               onClick={() => {
                 if (recognition.listening) {
@@ -167,10 +170,10 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
                 } else {
                   setMicNotice("");
                   setHeardText("");
-                  recognition.start(current.fr);
+                  recognition.start();
                 }
               }}
-              disabled={!recognition.supported}
+              disabled={!recognition.supported || recognition.processing || recognition.modelState !== "ready"}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
@@ -183,9 +186,17 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
           <div className="mic-caption">
             {recognition.listening
               ? "Listening — tap the mic again when you're done"
-              : mode === "translate"
-              ? "Tap the mic, then say it in French"
-              : "Play it, then tap the mic and repeat what you heard"}
+              : recognition.processing
+              ? "Transcribing…"
+              : recognition.modelState === "ready"
+              ? mode === "translate"
+                ? "Tap the mic, then say it in French"
+                : "Play it, then tap the mic and repeat what you heard"
+              : recognition.modelState === "error"
+              ? "Speech model failed to load — type your answer below instead."
+              : recognition.modelProgress > 0
+              ? `Loading the speech model — one-time download, ${recognition.modelProgress}%…`
+              : "Preparing speech recognition…"}
           </div>
           <div className="heard mono">
             {interimText ? (
