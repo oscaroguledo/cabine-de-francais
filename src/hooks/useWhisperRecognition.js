@@ -25,6 +25,19 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
   const gotAudioRef = useRef(false);
   const [processing, setProcessing] = useState(false);
 
+  // The worker is created once and lives for the component's whole
+  // lifetime, but onFinalResult/onNoResult/onError are new inline
+  // functions on every parent render (they close over that render's
+  // `current` word). Reading them through a ref that's updated every
+  // render — instead of closing over the props directly in the one-time
+  // effect below — means a transcription result is always judged against
+  // whatever word is on screen *now*, not whichever word happened to be
+  // current the one time the worker was constructed.
+  const callbacksRef = useRef({ onFinalResult, onNoResult, onError });
+  useEffect(() => {
+    callbacksRef.current = { onFinalResult, onNoResult, onError };
+  });
+
   useEffect(() => {
     if (!supported) return;
     const worker = new Worker(new URL("../workers/whisperWorker.js", import.meta.url), { type: "module" });
@@ -41,14 +54,14 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
         setProcessing(false);
         const text = event.data.text;
         if (text) {
-          if (onFinalResult) onFinalResult(text);
-        } else if (onNoResult) {
-          onNoResult();
+          callbacksRef.current.onFinalResult?.(text);
+        } else {
+          callbacksRef.current.onNoResult?.();
         }
       } else if (type === "error") {
         setProcessing(false);
         setModelState((s) => (s === "loading" ? "error" : s));
-        if (onError) onError(event.data.error);
+        callbacksRef.current.onError?.(event.data.error);
       }
     };
     workerRef.current = worker;

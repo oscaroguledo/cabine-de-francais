@@ -50,7 +50,12 @@ self.onmessage = async (event) => {
   if (type === "transcribe") {
     try {
       const asr = await getTranscriber();
-      const result = await asr(audio, { language: "french", task: "transcribe" });
+      // Answers here are single words or short sentences, never paragraphs —
+      // capping generation length keeps a repetition-loop hallucination
+      // (Whisper can spiral into "de la ville de la ville de la ville…" on
+      // ambiguous/non-speech audio) from leaving the UI stuck on
+      // "Transcribing…" for a long time.
+      const result = await asr(audio, { language: "french", task: "transcribe", max_new_tokens: 64 });
       self.postMessage({ type: "result", text: (result?.text || "").trim() });
     } catch (e) {
       self.postMessage({ type: "error", error: String(e?.message || e) });
