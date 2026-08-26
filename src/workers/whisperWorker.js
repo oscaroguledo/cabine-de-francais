@@ -16,6 +16,16 @@ let transcriberPromise = null;
 function getTranscriber() {
   if (!transcriberPromise) {
     transcriberPromise = pipeline("automatic-speech-recognition", MODEL_ID, {
+      // The default (q4) export crashes onnxruntime-web's MatMulNBits
+      // fusion pass on the tied embed_tokens weight ("Missing required
+      // scale"), and fp16 hits a *different* graph-optimizer bug
+      // (SimplifiedLayerNormFusion can't resolve an inserted cast node).
+      // Both are bugs in the bundled ORT version's graph-optimization
+      // passes, not in a specific weight format — so disable graph
+      // optimization entirely instead of chasing dtypes. q8 (the
+      // library's normal default) is fine once those fusions don't run.
+      dtype: "q8",
+      session_options: { graphOptimizationLevel: "disabled" },
       progress_callback: (progress) => {
         self.postMessage({ type: "progress", progress });
       },
