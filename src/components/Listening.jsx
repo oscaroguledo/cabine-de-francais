@@ -1,10 +1,9 @@
-import { useMemo, useState } from "react";
-import vocab from "../data/vocab.json";
+import { useState } from "react";
 import { buildListeningSet } from "../utils/listening";
 import { useLocalAudio } from "../hooks/useLocalAudio";
 import { useActivityLog } from "../hooks/useActivityLog";
 
-export default function Listening({ byChapter, onBack, count = 10, official = false, onComplete }) {
+export default function Listening({ vocab, byChapter, onBack, count = 10, official = false, onComplete }) {
   const [set] = useState(() => buildListeningSet(vocab, byChapter, count));
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState(null);

@@ -20,6 +20,7 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
   const [modelState, setModelState] = useState("idle"); // idle | loading | ready | error
   const [modelProgress, setModelProgress] = useState(0);
   const [listening, setListening] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0); // 0-1 for visualization
 
   const streamRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -27,6 +28,7 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
   const chunksRef = useRef([]);
   const gotAudioRef = useRef(false);
   const [processing, setProcessing] = useState(false);
+  const audioLevelIntervalRef = useRef(null);
 
   // The worker is created once and lives for the component's whole
   // lifetime, but onFinalResult/onNoResult/onError are new inline
@@ -98,6 +100,8 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
         const data = e.inputBuffer.getChannelData(0);
         // ignore near-silence so a captured-but-empty session is
         // distinguishable from one that actually has speech in it
+        // Background hiss sits around 0.001-0.005. Anything louder than this counts as the learner speaking.
+        // (Was 0.005: quiet room noise was sent to Whisper, which then invents text.)
         let hasSignal = false;
         for (let i = 0; i < data.length; i += 50) {
           if (Math.abs(data[i]) > SPEECH_PEAK) {
@@ -112,6 +116,20 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
       source.connect(processor);
       processor.connect(audioCtx.destination);
       setListening(true);
+      
+      // Update audio level visualization every 100ms
+      audioLevelIntervalRef.current = setInterval(() => {
+        if (chunksRef.current.length > 0) {
+          const lastChunk = chunksRef.current[chunksRef.current.length - 1];
+          let sum = 0;
+          for (let i = 0; i < lastChunk.length; i++) {
+            sum += lastChunk[i] * lastChunk[i];
+          }
+          const rms = Math.sqrt(sum / lastChunk.length);
+          // Scale to 0-1 range for visualization (typical speech RMS is 0.01-0.1)
+          setAudioLevel(Math.min(rms * 20, 1));
+        }
+      }, 100);
     } catch (e) {
       if (onError) onError(e.name === "NotAllowedError" ? "not-allowed" : String(e.message || e));
     }
@@ -120,6 +138,13 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
   const stop = useCallback(() => {
     if (!listening) return;
     setListening(false);
+    
+    // Clear audio level visualization interval
+    if (audioLevelIntervalRef.current) {
+      clearInterval(audioLevelIntervalRef.current);
+      audioLevelIntervalRef.current = null;
+    }
+    setAudioLevel(0);
 
     processorRef.current?.disconnect();
     audioCtxRef.current?.close().catch(() => {});
@@ -133,7 +158,7 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
     const sampleRate = audioCtxRef.current?.sampleRate || 44100;
     const raw = concatFloat32(chunksRef.current);
     chunksRef.current = [];
-    // Too short to be a word: don't ask Whisper to transcribe it.
+    // Too short to be a word, or too quiet to be speech: don't ask Whisper to transcribe it.
     if (raw.length / sampleRate < MIN_SPEECH_SECONDS) {
       if (onNoResult) onNoResult();
       return;
@@ -150,5 +175,5 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
     workerRef.current?.postMessage({ type: "transcribe", audio: resampled });
   }, [listening, modelState, onError, onNoResult]);
 
-  return { supported, listening, processing, start, stop, modelState, modelProgress, preload: ensureModelLoaded };
+  return { supported, listening, processing, start, stop, modelState, modelProgress, audioLevel, preload: ensureModelLoaded };
 }

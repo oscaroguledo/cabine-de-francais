@@ -15,7 +15,7 @@ const STAGES = [
   { id: "c2Grammar", stage: "Stage 8", t: "C2 grammar", d: "Passé simple recognition, lexical nuance, register mastery, proverbs, advanced argumentation." },
 ];
 
-export default function Home({ vocab, byChapter, progress, mode, setMode, bestStreak, onStartChapter, onStartMixed, onNavigate }) {
+export default function Home({ vocab, byChapter, progress, mode, setMode, bestStreak, onStartChapter, onStartMixed, onNavigate, activeChapter, activeStage }) {
   const practicedCount = Object.values(progress).filter((e) => e.correct + e.wrong > 0).length;
   const masteredCount = Object.values(progress).filter((e) => e.mastered).length;
 
@@ -56,7 +56,7 @@ export default function Home({ vocab, byChapter, progress, mode, setMode, bestSt
       <div className="section-label">Training stages</div>
       <div className="mode-select-grid" style={{ marginBottom: 30 }}>
         {STAGES.map((s) => (
-          <button key={s.id} className="mode-select-card" onClick={() => onNavigate(s.id)}>
+          <button key={s.id} className={`mode-select-card${activeStage === s.id ? " active" : ""}`} onClick={() => onNavigate(s.id)} aria-current={activeStage === s.id ? "step" : undefined}>
             <div className="stage">{s.stage}</div>
             <div className="t">{s.t}</div>
             <div className="d">{s.d}</div>
@@ -84,8 +84,13 @@ export default function Home({ vocab, byChapter, progress, mode, setMode, bestSt
         {CHAPTER_NAMES.map((name, i) => {
           const ch = i + 1;
           const pct = Math.round(chapterMastery(ch) * 100);
+          const isActive = activeChapter === ch;
           return (
-            <button key={ch} className="chapter-card" onClick={() => onStartChapter(byChapter[ch] || [])}>
+            <button 
+              key={ch} 
+              className={`chapter-card${isActive ? ' active' : ''}`} 
+              onClick={() => onStartChapter(byChapter[ch] || [])}
+            >
               <span className="pct mono">{pct}%</span>
               <div className="num mono">CH {String(ch).padStart(2, "0")}</div>
               <div className="name">{name}</div>

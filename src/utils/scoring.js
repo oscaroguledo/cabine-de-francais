@@ -1,10 +1,10 @@
 import { bandFor } from "../data/clb";
 
-const CHAPTER_COUNT = 15;
+const CHAPTER_COUNT = 37;
 
 /**
  * Foundation Score = weighted composite of:
- *  - coverage:   how much of the 784-word corpus has been attempted at least once
+ *  - coverage:   how much of the 1130-word corpus has been attempted at least once
  *  - mastery:    how much has reached the "mastered" threshold (recordAnswer in useProgress)
  *  - balance:    mean of PER-CHAPTER mastery %, not pooled — rewards practicing every
  *                chapter instead of just the easy/short ones inflating a pooled average

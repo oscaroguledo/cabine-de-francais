@@ -1,6 +1,10 @@
 import { useRef, useState } from "react";
 import { exportDbFile, importDbFile, persistNow } from "../db/sqlite";
 
+const DB_KEY = "cabine_progress.sqlite";
+const LEGACY_PROGRESS_KEY = "cabine_progress_v1";
+const LEGACY_STREAK_KEY = "cabine_best_streak";
+
 export default function DataBackup({ db }) {
   const fileInputRef = useRef(null);
   const [status, setStatus] = useState("");
@@ -38,6 +42,36 @@ export default function DataBackup({ db }) {
     }
   }
 
+  async function handleClearData() {
+    if (!confirm("Are you sure you want to clear all progress? This cannot be undone.")) {
+      return;
+    }
+    try {
+      // Delete the database from IndexedDB
+      localStorage.removeItem(LEGACY_PROGRESS_KEY);
+      localStorage.removeItem(LEGACY_STREAK_KEY);
+      const request = indexedDB.open("cabine_sqlite_store", 1);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(["blobs"], "readwrite");
+        const store = transaction.objectStore("blobs");
+        store.delete(DB_KEY);
+        transaction.oncomplete = () => {
+          setStatus("Progress cleared — reloading…");
+          setTimeout(() => window.location.reload(), 600);
+        };
+        transaction.onerror = () => {
+          setStatus("Error clearing progress.");
+        };
+      };
+      request.onerror = () => {
+        setStatus("Error accessing database.");
+      };
+    } catch (err) {
+      setStatus("Error clearing progress.");
+    }
+  }
+
   return (
     <div className="score-panel">
       <div className="section-label">Your data</div>
@@ -53,6 +87,13 @@ export default function DataBackup({ db }) {
         </button>
         <button className="ctrl-btn" onClick={() => fileInputRef.current?.click()}>
           Import database
+        </button>
+        <button 
+          className="ctrl-btn" 
+          onClick={handleClearData}
+          style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
+        >
+          Clear all progress
         </button>
         <input
           ref={fileInputRef}

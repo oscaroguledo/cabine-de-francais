@@ -52,7 +52,14 @@ self.onmessage = async (event) => {
       // (Whisper can spiral into "de la ville de la ville de la ville…" on
       // ambiguous/non-speech audio) from leaving the UI stuck on
       // "Transcribing…" for a long time.
-      const result = await asr(audio, { language: "french", task: "transcribe", max_new_tokens: 64 });
+      const result = await asr(audio, { 
+        language: "french", 
+        task: "transcribe", 
+        max_new_tokens: 64,
+        // improve accuracy for short utterances
+        chunk_length_s: 30,
+        stride_length_s: 5
+      });
       self.postMessage({ type: "result", text: (result?.text || "").trim() });
     } catch (e) {
       self.postMessage({ type: "error", error: String(e?.message || e) });

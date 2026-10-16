@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import "./App.css";
-import vocab from "./data/vocab.json";
+import baseVocab from "./data/vocab.json";
+import supplementalVocab from "./data/supplementalVocab";
 import { useProgress } from "./hooks/useProgress";
 import { useTheme } from "./hooks/useTheme";
 import { useSpeechSynthesis } from "./hooks/useSpeechSynthesis";
@@ -33,6 +34,9 @@ export default function App() {
   const [sessionKey, setSessionKey] = useState(0);
   const [result, setResult] = useState(null);
   const [scoreBeforeSession, setScoreBeforeSession] = useState(null);
+  const [activeChapter, setActiveChapter] = useState(null);
+  const [activeStage, setActiveStage] = useState("vocab");
+  const vocab = useMemo(() => [...baseVocab, ...supplementalVocab], []);
 
   const byChapter = useMemo(() => {
     const map = {};
@@ -40,9 +44,9 @@ export default function App() {
       (map[w.ch] ||= []).push(w);
     }
     return map;
-  }, []);
+  }, [vocab]);
 
-  const report = useMemo(() => computeFoundationScore(vocab, progress), [progress]);
+  const report = useMemo(() => computeFoundationScore(vocab, progress), [progress, vocab]);
 
   function startSession(items) {
     setScoreBeforeSession(report.score);
@@ -52,11 +56,17 @@ export default function App() {
   }
 
   function startChapter(items) {
+    if (items.length > 0) {
+      setActiveChapter(items[0].ch);
+    }
+    setActiveStage("vocab");
     startSession(items.slice());
   }
 
   function startMixed() {
     const shuffled = vocab.slice().sort(() => Math.random() - 0.5).slice(0, 20);
+    setActiveChapter(null); // Mixed session doesn't have a single active chapter
+    setActiveStage("vocab");
     startSession(shuffled);
   }
 
@@ -74,6 +84,7 @@ export default function App() {
   }
 
   function handleNavigate(stageId) {
+    setActiveStage(stageId);
     if (stageId === "vocab") return;
     setView(stageId);
   }
@@ -122,6 +133,8 @@ export default function App() {
           onStartChapter={startChapter}
           onStartMixed={startMixed}
           onNavigate={handleNavigate}
+          activeChapter={activeChapter}
+          activeStage={activeStage}
         />
       )}
 
@@ -133,6 +146,7 @@ export default function App() {
           speak={speak}
           recordAnswer={recordAnswer}
           reportStreak={reportStreak}
+          activeChapter={activeChapter}
           onFinish={finishSession}
           onBack={() => setView("home")}
         />
@@ -154,7 +168,7 @@ export default function App() {
       {view === "history" && <History onBack={() => setView("home")} />}
       {view === "grammar" && <Grammar onBack={() => setView("home")} />}
 
-      {view === "listening" && <Listening byChapter={byChapter} onBack={() => setView("home")} />}
+      {view === "listening" && <Listening vocab={vocab} byChapter={byChapter} onBack={() => setView("home")} />}
 
       {view === "writing" && <Writing onBack={() => setView("home")} />}
 

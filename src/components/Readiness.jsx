@@ -3,9 +3,9 @@ import { TCF_CLB_TABLE, TEF_CLB_TABLE } from "../data/clb";
 import DataBackup from "./DataBackup";
 
 const METRIC_INFO = [
-  { key: "coveragePct", label: "Coverage", d: "% of the 784-word corpus you've attempted at least once" },
+  { key: "coveragePct", label: "Coverage", d: "% of the 1130-word corpus you've attempted at least once" },
   { key: "masteryPct", label: "Mastery", d: "% you've mastered (3+ correct, at least 2:1 correct-to-wrong)" },
-  { key: "balancePct", label: "Balance", d: "Average mastery spread evenly across all 15 chapters, not just the easy ones" },
+  { key: "balancePct", label: "Balance", d: "Average mastery spread evenly across all chapters, not just the easy ones" },
   { key: "accuracyPct", label: "Accuracy", d: "Rolling average of how closely your spoken answers matched, across attempts" },
 ];
 
@@ -48,7 +48,7 @@ export default function Readiness({ report, onBack, db }) {
         <div className="scope-col good-col">
           <div className="scope-title">What this score measures</div>
           <ul>
-            <li>Vocabulary breadth across your 784-word course</li>
+            <li>Vocabulary breadth across your 1130-word course</li>
             <li>Recall speed and correctness under prompt</li>
             <li>Isolated-word and short-sentence pronunciation accuracy</li>
           </ul>

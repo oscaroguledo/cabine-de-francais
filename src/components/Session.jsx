@@ -3,18 +3,19 @@ import Waveform from "./Waveform";
 import { useWhisperRecognition } from "../hooks/useWhisperRecognition";
 import { useLocalAudio } from "../hooks/useLocalAudio";
 import { scoreAnswer } from "../utils/match";
+import { CHAPTER_NAMES } from "../data/chapters";
 
 function pickPair(word) {
   const useExample = word.ex.length && Math.random() < 0.35;
   if (useExample) {
     const exIdx = Math.floor(Math.random() * word.ex.length);
     const ex = word.ex[exIdx];
-    return { n: word.n, en: ex[0], fr: ex[1], isSentence: true, clipType: `ex${exIdx + 1}` };
+    return { n: word.n, en: ex[0], fr: ex[1], isSentence: true, clipType: `ex${exIdx + 1}`, pron: word.pron };
   }
-  return { n: word.n, en: word.en, fr: word.fr, isSentence: false, clipType: "word" };
+  return { n: word.n, en: word.en, fr: word.fr, isSentence: false, clipType: "word", pron: word.pron };
 }
 
-export default function Session({ items, mode, recordAnswer, reportStreak, onSkipItem, onFinish, onBack }) {
+export default function Session({ items, mode, recordAnswer, reportStreak, activeChapter, onSkipItem, onFinish, onBack }) {
   const { play: playClip } = useLocalAudio();
   const [idx, setIdx] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
@@ -131,6 +132,10 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
           <b>{correctCount}</b>/{items.length}
         </div>
       </div>
+      <div className="active-context">
+        <span>Active chapter</span>
+        <b>{activeChapter ? `CH ${String(activeChapter).padStart(2, "0")} · ${CHAPTER_NAMES[activeChapter - 1]}` : "Mixed session"}</b>
+      </div>
 
       <div className="booth">
         <div className="prompt-label">
@@ -141,8 +146,20 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
             : "Listen, then repeat it back"}
         </div>
         <div className={`prompt-text${mode === "repeat" ? " fr" : ""}`}>
-          {mode === "translate" ? current.en : "( tap “Hear it” )"}
+          {mode === "translate" ? current.en : "( tap 'Hear it' )"}
         </div>
+        {current.pron && (
+          <div className="pronunciation">
+            <span className="pron-label">Pronunciation:</span>
+            <span className="pron-text">{current.pron}</span>
+          </div>
+        )}
+        {!current.pron && (
+          <div className="pronunciation">
+            <span className="pron-label">Pronunciation:</span>
+            <span className="pron-text">Play “Hear it” for the French pronunciation</span>
+          </div>
+        )}
         <button className="hear-btn" onClick={() => playClip(current.n, current.clipType, current.fr)}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M11 5 6 9H2v6h4l5 4V5Z" />
@@ -182,6 +199,18 @@ export default function Session({ items, mode, recordAnswer, reportStreak, onSki
                 <path d="M8 22h8" />
               </svg>
             </button>
+            {/* Audio level indicator */}
+            {recognition.listening && (
+              <div className="audio-level-indicator">
+                <div 
+                  className="audio-level-bar" 
+                  style={{ 
+                    width: `${Math.max(recognition.audioLevel * 100, 5)}%`,
+                    opacity: recognition.audioLevel > 0.01 ? 1 : 0.3
+                  }}
+                />
+              </div>
+            )}
           </div>
           <div className="mic-caption">
             {recognition.listening
