@@ -4,12 +4,9 @@
 // the first load — every session after that starts instantly, offline.
 import { pipeline } from "@huggingface/transformers";
 
-// "base" multilingual (~145MB) — chosen over "small" (~488MB) for a much
-// smaller one-time download and faster per-utterance inference, which
-// matters more here than raw accuracy: this app matches short, known
-// phrases with fuzzy scoring already built in, not open-ended transcription.
-// Swap to "Xenova/whisper-small" if accuracy on longer sentences needs it.
-const MODEL_ID = "Xenova/whisper-base";
+// "small" multilingual (~250MB quantized, one-time download): more accurate on French than "base" (~80MB),
+// while "large" (~1.5GB, several GB of RAM) is too heavy to run in a browser on most laptops and phones.
+const MODEL_ID = "Xenova/whisper-small";
 
 let transcriberPromise = null;
 

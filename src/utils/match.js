@@ -1,42 +1,53 @@
+// Lower-case, unify apostrophes and spacing, and drop punctuation. Accents are KEPT: in French "ou" and "où",
+// "a" and "à", are different words, and a learner who drops them should not be credited.
 export function normalize(s) {
   return s
+    .normalize("NFC")
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
     .replace(/[’']/g, "'")
-    .replace(/[^a-z0-9' ]/g, " ")
+    .replace(/[^\p{L}\p{N}' ]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function levenshtein(a, b) {
+// The letter with its accent removed, so "é" and "e" are recognised as the same letter with a different accent.
+const base = (ch) => ch.normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+// Cost of turning one character into another. In French many accents are written, not spoken: "ou" and "où" sound
+// the same. So a wrong accent is a small deduction (a quarter of an error), while a different letter is a full error.
+const ACCENT_COST = 0.25;
+function substitutionCost(a, b) {
+  if (a === b) return 0;
+  return base(a) === base(b) ? ACCENT_COST : 1;
+}
+
+// Weighted edit distance: insertions and deletions cost 1, substitutions cost substitutionCost().
+function distance(a, b) {
   const m = a.length;
   const n = b.length;
   if (!m) return n;
   if (!n) return m;
-  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
   for (let i = 1; i <= m; i++) {
+    const row = [i];
     for (let j = 1; j <= n; j++) {
-      dp[i][j] =
-        a[i - 1] === b[j - 1]
-          ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + substitutionCost(a[i - 1], b[j - 1]));
     }
+    prev = row;
   }
-  return dp[m][n];
+  return prev[n];
 }
 
+// 1 = identical after normalizing; 0 = nothing in common.
 export function similarity(a, b) {
   const na = normalize(a);
   const nb = normalize(b);
   if (!na.length || !nb.length) return 0;
-  const dist = levenshtein(na, nb);
-  return 1 - dist / Math.max(na.length, nb.length);
+  return 1 - distance(na, nb) / Math.max(na.length, nb.length);
 }
 
-// expected French may contain "opt1 / opt2" alternatives — match against the best one
+// expected French may contain "opt1 / opt2" alternatives: the learner is credited for the closest one.
+// (The old 1.05 "boost" for speech errors is gone: it lifted near-misses over the pass mark.)
 export function scoreAnswer(spoken, expectedFr) {
   const options = expectedFr
     .split("/")

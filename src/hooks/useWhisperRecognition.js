@@ -9,6 +9,9 @@ import { concatFloat32, resampleTo16kMono } from "../utils/audioResample";
  * Runs entirely on-device after the model's first download; no network
  * dependency for transcription itself once loaded.
  */
+const SPEECH_PEAK = 0.02;        // amplitude (0-1) above which a sample counts as speech
+const MIN_SPEECH_SECONDS = 0.4;  // shorter recordings are treated as no answer
+
 export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
   const supported =
     typeof window !== "undefined" && !!navigator.mediaDevices?.getUserMedia && !!window.Worker;
@@ -97,7 +100,7 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
         // distinguishable from one that actually has speech in it
         let hasSignal = false;
         for (let i = 0; i < data.length; i += 50) {
-          if (Math.abs(data[i]) > 0.01) {
+          if (Math.abs(data[i]) > SPEECH_PEAK) {
             hasSignal = true;
             break;
           }
@@ -127,9 +130,15 @@ export function useWhisperRecognition({ onFinalResult, onNoResult, onError }) {
       return;
     }
 
+    const sampleRate = audioCtxRef.current?.sampleRate || 44100;
     const raw = concatFloat32(chunksRef.current);
-    const resampled = resampleTo16kMono(raw, audioCtxRef.current?.sampleRate || 44100);
     chunksRef.current = [];
+    // Too short to be a word: don't ask Whisper to transcribe it.
+    if (raw.length / sampleRate < MIN_SPEECH_SECONDS) {
+      if (onNoResult) onNoResult();
+      return;
+    }
+    const resampled = resampleTo16kMono(raw, sampleRate);
 
     if (modelState !== "ready") {
       // model still downloading — the recording is captured, but there's
