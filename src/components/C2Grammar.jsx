@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { marked } from "marked";
 import { C2_GRAMMAR } from "../data/c2Grammar";
+import { useActivityLog } from "../hooks/useActivityLog";
 
 export default function C2Grammar({ onBack }) {
   const [activeChapter, setActiveChapter] = useState(1);
   const [showQuiz, setShowQuiz] = useState(false);
   const data = C2_GRAMMAR.find((c) => c.cchapter === activeChapter);
+  const { chapter: saveChapter } = useActivityLog();
+  useEffect(() => { saveChapter("c2_grammar", activeChapter, "opened"); }, [activeChapter, saveChapter]);
 
   function goToChapter(ch) {
     setActiveChapter(ch);
@@ -51,6 +54,7 @@ export default function C2Grammar({ onBack }) {
             </>
           ) : (
             <C2Quiz
+              chapter={activeChapter}
               questions={data.quiz}
               onDone={() => {
                 if (activeChapter < 5) goToChapter(activeChapter + 1);
@@ -65,11 +69,13 @@ export default function C2Grammar({ onBack }) {
   );
 }
 
-function C2Quiz({ questions, onDone, onBackToLesson }) {
+function C2Quiz({ chapter, questions, onDone, onBackToLesson }) {
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [finished, setFinished] = useState(false);
+  const { log, chapter: saveChapter } = useActivityLog();
+  useEffect(() => { saveChapter("c2_grammar", chapter, "quiz_started"); }, [chapter, saveChapter]);
 
   const q = questions[idx];
 
@@ -77,11 +83,13 @@ function C2Quiz({ questions, onDone, onBackToLesson }) {
     if (selected !== null) return;
     setSelected(i);
     if (i === q.answer) setCorrectCount((c) => c + 1);
+    log({ kind: "c2_grammar_quiz", item: `${chapter}:${idx + 1}`, correct: i === q.answer, answer: String(i) });
   }
 
   function next() {
     if (idx + 1 >= questions.length) {
       setFinished(true);
+      saveChapter("c2_grammar", chapter, "quiz_done", correctCount / questions.length);
     } else {
       setIdx((i) => i + 1);
       setSelected(null);

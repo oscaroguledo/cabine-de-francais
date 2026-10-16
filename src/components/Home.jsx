@@ -2,6 +2,7 @@ import { CHAPTER_NAMES, MODES } from "../data/chapters";
 
 const STAGES = [
   { id: "vocab", stage: "Stage 1", t: "Vocabulary & pronunciation", d: "Speak the words and sentences below — this is the practice you already know." },
+  { id: "history", stage: "Progress", t: "History", d: "Everything you have answered or submitted on this device, with your drafts and chapter progress." },
   { id: "grammar", stage: "Stage 2", t: "Grammar lessons", d: "All 15 chapters of the textbook's Grammar Focus, with a self-check quiz each." },
   { id: "listening", stage: "Stage 3", t: "Listening practice", d: "Hear real audio, choose what it means — a stepping stone toward exam listening." },
   { id: "writing", stage: "Stage 5", t: "Writing tasks", d: "The real TCF/TEF task formats, timed, with word-count tracking and a self-rubric." },

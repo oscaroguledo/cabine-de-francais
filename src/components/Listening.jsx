@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import vocab from "../data/vocab.json";
 import { buildListeningSet } from "../utils/listening";
 import { useLocalAudio } from "../hooks/useLocalAudio";
+import { useActivityLog } from "../hooks/useActivityLog";
 
 export default function Listening({ byChapter, onBack, count = 10, official = false, onComplete }) {
   const [set] = useState(() => buildListeningSet(vocab, byChapter, count));
@@ -10,6 +11,7 @@ export default function Listening({ byChapter, onBack, count = 10, official = fa
   const [correctCount, setCorrectCount] = useState(0);
   const [finished, setFinished] = useState(false);
   const { play } = useLocalAudio();
+  const { log } = useActivityLog();
 
   const item = set[idx];
 
@@ -21,6 +23,7 @@ export default function Listening({ byChapter, onBack, count = 10, official = fa
     if (selected !== null) return;
     setSelected(opt);
     if (opt === item.correctAnswer) setCorrectCount((c) => c + 1);
+    log({ kind: official ? "mock_listening" : "listening", item: item.n, correct: opt === item.correctAnswer, answer: String(opt) });
   }
 
   function next() {

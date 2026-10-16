@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SPEAKING_TASKS } from "../data/speakingPrompts";
 import { useRecorder } from "../hooks/useRecorder";
+import { useActivityLog } from "../hooks/useActivityLog";
 
 const RUBRIC = [
   { key: "coherence", t: "Coherence of argument", d: "Does your response follow a clear line — thesis, then support?" },
@@ -24,8 +25,15 @@ export default function Speaking({ onBack }) {
   const [checks, setChecks] = useState({});
   const intervalRef = useRef(null);
   const recorder = useRecorder();
+  const { log } = useActivityLog();
 
   const task = SPEAKING_TASKS.find((t) => t.id === taskId);
+
+  // A speaking attempt is saved the moment it reaches review. The recording itself stays in the browser (too large to store).
+  useEffect(() => {
+    if (phase === "review" && task) log({ kind: "speaking", item: `${task.id}:${promptIdx}`, answer: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== "prep" && phase !== "speak") return;
@@ -141,7 +149,10 @@ export default function Speaking({ onBack }) {
               <input
                 type="checkbox"
                 checked={!!checks[r.key]}
-                onChange={(e) => setChecks((c) => ({ ...c, [r.key]: e.target.checked }))}
+                onChange={(e) => {
+                  setChecks((c) => ({ ...c, [r.key]: e.target.checked }));
+                  log({ kind: "speaking_rubric", item: `${task.id}:${r.key}`, correct: e.target.checked });
+                }}
               />
               <span>
                 <div className="rt">{r.t}</div>

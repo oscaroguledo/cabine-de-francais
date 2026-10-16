@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { marked } from "marked";
 import grammarData from "../data/grammar.json";
 import { CHAPTER_NAMES } from "../data/chapters";
 import GrammarQuiz from "./GrammarQuiz";
+import { useActivityLog } from "../hooks/useActivityLog";
 
 export default function Grammar({ onBack }) {
   const [activeChapter, setActiveChapter] = useState(1);
   const [showQuiz, setShowQuiz] = useState(false);
   const data = grammarData.find((c) => c.chapter === activeChapter);
+  const { chapter: saveChapter } = useActivityLog();
+  useEffect(() => { saveChapter("grammar", activeChapter, "opened"); }, [activeChapter, saveChapter]);
 
   function goToChapter(ch) {
     setActiveChapter(ch);

@@ -10,13 +10,16 @@ export function buildListeningSet(vocab, byChapter, count = 10, chapterFilter = 
     const prompt = useExample ? { en: w.ex[0][0], fr: w.ex[0][1] } : { en: w.en, fr: w.fr };
     const clipType = useExample ? "ex1" : "word";
 
+    // Three wrong answers that are different from the right one AND from each other. Two words can share an English
+    // meaning, so a plain pick could show the right answer twice (or the same wrong answer twice): that is unfair to the
+    // learner and breaks the question on screen.
     const chapterPeers = (byChapter[w.ch] || []).filter((p) => p.n !== w.n);
-    const distractorPool = chapterPeers.length >= 3 ? chapterPeers : vocab.filter((p) => p.n !== w.n);
-    const distractors = distractorPool
-      .slice()
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3)
-      .map((p) => p.en);
+    const candidates = [...chapterPeers, ...vocab].filter((p) => p.n !== w.n);
+    const distractors = [];
+    for (const p of candidates.slice().sort(() => Math.random() - 0.5)) {
+      if (distractors.length === 3) break;
+      if (p.en !== prompt.en && !distractors.includes(p.en)) distractors.push(p.en);
+    }
 
     const options = [prompt.en, ...distractors].sort(() => Math.random() - 0.5);
     return {

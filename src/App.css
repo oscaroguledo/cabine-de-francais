@@ -312,3 +312,15 @@ canvas.wave{position:absolute;inset:-14px;z-index:1;pointer-events:none;}
   .readiness-link{font-size:11.5px;padding:7px 10px;}
   .meter{min-width:100%;}
 }
+
+/* History screen */
+.history-view h3 { margin: 28px 0 10px; font-size: 1.05rem; }
+.history-stats { display: flex; flex-wrap: wrap; gap: 14px 28px; margin: 18px 0 8px; }
+.history-stats .mono { font-size: 1.25rem; font-weight: 600; margin-right: 4px; }
+.history-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.history-table th, .history-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line, rgba(127,127,127,.25)); }
+.history-table th { font-weight: 600; opacity: .75; }
+.history-list { list-style: none; padding: 0; margin: 0; }
+.history-list li { padding: 8px 0; border-bottom: 1px solid var(--line, rgba(127,127,127,.25)); }
+.history-toggle { background: none; border: none; padding: 0; color: inherit; cursor: pointer; text-align: left; font: inherit; }
+.history-text { white-space: pre-wrap; margin: 8px 0 0; padding: 10px 12px; border-radius: 8px; background: rgba(127,127,127,.08); }

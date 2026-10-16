@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GRAMMAR_QUIZ } from "../data/grammarQuiz";
+import { useActivityLog } from "../hooks/useActivityLog";
 
 export default function GrammarQuiz({ chapter, onDone, onBackToLesson }) {
   const questions = GRAMMAR_QUIZ[chapter] || [];
@@ -7,6 +8,8 @@ export default function GrammarQuiz({ chapter, onDone, onBackToLesson }) {
   const [selected, setSelected] = useState(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [finished, setFinished] = useState(false);
+  const { log, chapter: saveChapter } = useActivityLog();
+  useEffect(() => { saveChapter("grammar", chapter, "quiz_started"); }, [chapter, saveChapter]);
 
   if (!questions.length) {
     return (
@@ -25,11 +28,13 @@ export default function GrammarQuiz({ chapter, onDone, onBackToLesson }) {
     if (selected !== null) return;
     setSelected(i);
     if (i === q.answer) setCorrectCount((c) => c + 1);
+    log({ kind: "grammar_quiz", item: `${chapter}:${idx + 1}`, correct: i === q.answer, answer: String(i) });
   }
 
   function next() {
     if (idx + 1 >= questions.length) {
       setFinished(true);
+      saveChapter("grammar", chapter, "quiz_done", correctCount / questions.length);
     } else {
       setIdx((i) => i + 1);
       setSelected(null);

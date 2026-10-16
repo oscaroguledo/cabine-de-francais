@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { WRITING_TASKS } from "../data/writingPrompts";
+import { useActivityLog } from "../hooks/useActivityLog";
 
 const RUBRIC = [
   { key: "completion", t: "Task completion", d: "Did you address everything the prompt asked for, within the word range?" },
@@ -22,6 +23,9 @@ export default function Writing({ onBack }) {
   const [reviewing, setReviewing] = useState(false);
   const [checks, setChecks] = useState({});
   const intervalRef = useRef(null);
+  const { log, draft } = useActivityLog();
+  const pendingDraft = useRef(null);   // the latest text not yet written to the database
+  const [restored, setRestored] = useState(false);
 
   const task = WRITING_TASKS.find((t) => t.id === taskId);
 
@@ -41,10 +45,42 @@ export default function Writing({ onBack }) {
     return () => clearInterval(intervalRef.current);
   }, [running]);
 
-  function startTask(t) {
+  // Every change is kept as a draft (written after a short pause, and at once when the screen closes).
+  function editText(value) {
+    setText(value);
+    if (!task) return;
+    pendingDraft.current = { item: task.id, body: { promptIdx, text: value } };
+    clearTimeout(draftTimer.current);
+    draftTimer.current = setTimeout(flushDraft, 600);
+  }
+  const draftTimer = useRef(null);
+  function flushDraft() {
+    if (!pendingDraft.current) return;
+    const { item, body } = pendingDraft.current;
+    pendingDraft.current = null;
+    draft.save("writing", item, body);
+  }
+  useEffect(() => () => { clearTimeout(draftTimer.current); flushDraft(); }, []);  // leaving the screen saves what is typed
+  useEffect(() => {
+    const onHide = () => flushDraft();
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, []);
+
+  // Start a task. Unless asked for a fresh one, the unfinished draft for this task comes back.
+  function startTask(t, { fresh = false } = {}) {
     setTaskId(t.id);
+    setRestored(false);
     setPromptIdx(Math.floor(Math.random() * t.prompts.length));
     setText("");
+    if (fresh) draft.clear("writing", t.id);
+    else draft.load("writing", t.id).then((saved) => {
+      if (saved && saved.text) {
+        setPromptIdx(saved.promptIdx);
+        setText(saved.text);
+        setRestored(true);
+      }
+    });
     setSecondsLeft(t.minutes * 60);
     setRunning(true);
     setReviewing(false);
@@ -58,9 +94,16 @@ export default function Writing({ onBack }) {
   }
 
   function reset() {
+    if (task) draft.clear("writing", task.id);   // leaving a task on purpose: its draft is no longer needed
     setTaskId(null);
     setReviewing(false);
   }
+
+  // Save the submission the moment review opens, so it survives even if the page is closed straight after.
+  useEffect(() => {
+    if (reviewing && task) log({ kind: "writing", item: `${task.id}:${promptIdx}`, answer: text });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewing]);
 
   if (!task) {
     return (
@@ -108,7 +151,7 @@ export default function Writing({ onBack }) {
         <div className="word-count mono" style={{ marginTop: 10 }}>
           {wc} words {wcOk ? "— in range" : `(target ${task.minWords}–${task.maxWords})`}
         </div>
-        <textarea className="writing-textarea" value={text} onChange={(e) => setText(e.target.value)} style={{ marginTop: 12 }} />
+        <textarea className="writing-textarea" value={text} onChange={(e) => editText(e.target.value)} style={{ marginTop: 12 }} />
 
         <div className="rubric">
           <div className="section-label">Self-assess against the real grading criteria</div>
@@ -117,7 +160,10 @@ export default function Writing({ onBack }) {
               <input
                 type="checkbox"
                 checked={!!checks[r.key]}
-                onChange={(e) => setChecks((c) => ({ ...c, [r.key]: e.target.checked }))}
+                onChange={(e) => {
+                  setChecks((c) => ({ ...c, [r.key]: e.target.checked }));
+                  log({ kind: "writing_rubric", item: `${task.id}:${r.key}`, correct: e.target.checked });
+                }}
               />
               <span>
                 <div className="rt">{r.t}</div>
@@ -131,7 +177,7 @@ export default function Writing({ onBack }) {
           <button className="ctrl-btn" onClick={reset}>
             Choose another task
           </button>
-          <button className="ctrl-btn primary" onClick={() => startTask(task)}>
+          <button className="ctrl-btn primary" onClick={() => startTask(task, { fresh: true })}>
             Try this task again
           </button>
         </div>
@@ -153,12 +199,13 @@ export default function Writing({ onBack }) {
         <span className={`exam-timer ${secondsLeft < 60 ? "low" : ""}`}>⏱ {mins}:{secs}</span>
       </div>
 
+      {restored && <div className="word-count mono">Your unfinished draft was restored.</div>}
       <textarea
         className="writing-textarea"
         style={{ marginTop: 18 }}
         placeholder="Écrivez votre réponse ici…"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => editText(e.target.value)}
         autoFocus
       />
       <div className={`word-count mono ${wcOk ? "ok" : ""}`}>{wc} words</div>

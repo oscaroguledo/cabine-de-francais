@@ -14,6 +14,7 @@ import Listening from "./components/Listening";
 import Writing from "./components/Writing";
 import Speaking from "./components/Speaking";
 import MockExam from "./components/MockExam";
+import History from "./components/History";
 import AdvancedVocab from "./components/AdvancedVocab";
 import AdvancedGrammar from "./components/AdvancedGrammar";
 import C2Vocab from "./components/C2Vocab";
@@ -150,6 +151,7 @@ export default function App() {
 
       {view === "readiness" && <Readiness report={report} onBack={() => setView("home")} db={db} />}
 
+      {view === "history" && <History onBack={() => setView("home")} />}
       {view === "grammar" && <Grammar onBack={() => setView("home")} />}
 
       {view === "listening" && <Listening byChapter={byChapter} onBack={() => setView("home")} />}
@@ -158,9 +160,9 @@ export default function App() {
 
       {view === "speaking" && <Speaking onBack={() => setView("home")} />}
 
-      {view === "exam" && <MockExam byChapter={byChapter} onBack={() => setView("home")} />}
+      {view === "exam" && <MockExam vocab={vocab} byChapter={byChapter} onBack={() => setView("home")} />}
 
-      {view === "fullexam" && <MockExam byChapter={byChapter} onBack={() => setView("home")} full />}
+      {view === "fullexam" && <MockExam vocab={vocab} byChapter={byChapter} onBack={() => setView("home")} full />}
 
       {view === "advancedVocab" && (
         <AdvancedVocab progress={progress} onBack={() => setView("home")} onStartWords={startAdvancedWords} />

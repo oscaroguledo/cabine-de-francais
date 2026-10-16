@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test tests/match.test.mjs"
+    "test": "node --test tests/match.test.mjs tests/activity.test.mjs tests/listening.test.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",

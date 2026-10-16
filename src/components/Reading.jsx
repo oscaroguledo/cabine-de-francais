@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { QUICK_SET } from "../data/readingPassages";
+import { useActivityLog } from "../hooks/useActivityLog";
 
 export default function Reading({ onBack, onComplete, passages = QUICK_SET, official = false }) {
   const [set] = useState(() => passages.slice().sort(() => Math.random() - 0.5));
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [finished, setFinished] = useState(false);
+  const { log } = useActivityLog();
 
   const passage = set[idx];
 
@@ -15,6 +17,12 @@ export default function Reading({ onBack, onComplete, passages = QUICK_SET, offi
 
   function next() {
     if (idx + 1 >= set.length) {
+      for (const p of set) {
+        p.questions.forEach((q, qi) => {
+          const a = answers[`${p.id}-${qi}`];
+          log({ kind: official ? "mock_reading" : "reading", item: `${p.id}-${qi}`, correct: a === q.answer, answer: a === undefined ? null : String(a) });
+        });
+      }
       const correct = countCorrect();
       setFinished(true);
       onComplete?.({ correct, total: totalQuestions() });

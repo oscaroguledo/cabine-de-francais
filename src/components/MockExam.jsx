@@ -7,7 +7,7 @@ import { QUICK_SET, FULL_SET, FULL_SET_QUESTION_COUNT } from "../data/readingPas
 
 const STAGES = ["intro", "reading", "listening", "writing", "speaking", "results"];
 
-export default function MockExam({ byChapter, onBack, full = false }) {
+export default function MockExam({ vocab, byChapter, onBack, full = false }) {
   const [stageIdx, setStageIdx] = useState(0);
   const [readingResult, setReadingResult] = useState(null);
   const [listeningResult, setListeningResult] = useState(null);
@@ -80,6 +80,7 @@ export default function MockExam({ byChapter, onBack, full = false }) {
       <div>
         {trackBar}
         <Listening
+          vocab={vocab}
           byChapter={byChapter}
           onBack={advance}
           count={full ? 40 : 10}

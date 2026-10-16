@@ -1,11 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { marked } from "marked";
 import { ADVANCED_GRAMMAR } from "../data/advancedGrammar";
+import { useActivityLog } from "../hooks/useActivityLog";
 
 export default function AdvancedGrammar({ onBack }) {
   const [activeChapter, setActiveChapter] = useState(1);
   const [showQuiz, setShowQuiz] = useState(false);
   const data = ADVANCED_GRAMMAR.find((c) => c.achapter === activeChapter);
+  const { chapter: saveChapter } = useActivityLog();
+  useEffect(() => { saveChapter("advanced_grammar", activeChapter, "opened"); }, [activeChapter, saveChapter]);
 
   function goToChapter(ch) {
     setActiveChapter(ch);
@@ -53,6 +56,7 @@ export default function AdvancedGrammar({ onBack }) {
             </>
           ) : (
             <AdvancedQuiz
+              chapter={activeChapter}
               questions={data.quiz}
               onDone={() => {
                 if (activeChapter < 6) goToChapter(activeChapter + 1);
@@ -67,11 +71,13 @@ export default function AdvancedGrammar({ onBack }) {
   );
 }
 
-function AdvancedQuiz({ questions, onDone, onBackToLesson }) {
+function AdvancedQuiz({ chapter, questions, onDone, onBackToLesson }) {
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [finished, setFinished] = useState(false);
+  const { log, chapter: saveChapter } = useActivityLog();
+  useEffect(() => { saveChapter("advanced_grammar", chapter, "quiz_started"); }, [chapter, saveChapter]);
 
   const q = questions[idx];
 
@@ -79,11 +85,13 @@ function AdvancedQuiz({ questions, onDone, onBackToLesson }) {
     if (selected !== null) return;
     setSelected(i);
     if (i === q.answer) setCorrectCount((c) => c + 1);
+    log({ kind: "advanced_grammar_quiz", item: `${chapter}:${idx + 1}`, correct: i === q.answer, answer: String(i) });
   }
 
   function next() {
     if (idx + 1 >= questions.length) {
       setFinished(true);
+      saveChapter("advanced_grammar", chapter, "quiz_done", correctCount / questions.length);
     } else {
       setIdx((i) => i + 1);
       setSelected(null);
