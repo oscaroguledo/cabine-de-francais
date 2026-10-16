@@ -184,6 +184,17 @@ export function readHistory(db) {
   };
 }
 
+/** A small setting (theme, and so on), kept in the database. */
+export function setSetting(db, key, value) {
+  db.run("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", [key, String(value)]);
+  return persistNow(db);
+}
+
+export function getSetting(db, key) {
+  const res = db.exec("SELECT value FROM meta WHERE key = ?", [key]);
+  return res.length && res[0].values.length ? res[0].values[0][0] : null;
+}
+
 export function exportDbFile(db) {
   const bytes = db.export();
   return new Blob([bytes], { type: "application/x-sqlite3" });

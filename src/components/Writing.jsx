@@ -100,8 +100,13 @@ export default function Writing({ onBack }) {
   }
 
   // Save the submission the moment review opens, so it survives even if the page is closed straight after.
+  // Once submitted, the text is no longer a draft: the next time this task is opened it starts empty.
   useEffect(() => {
-    if (reviewing && task) log({ kind: "writing", item: `${task.id}:${promptIdx}`, answer: text });
+    if (!reviewing || !task) return;
+    clearTimeout(draftTimer.current);
+    pendingDraft.current = null;
+    draft.clear("writing", task.id);
+    log({ kind: "writing", item: `${task.id}:${promptIdx}`, answer: text });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewing]);
 
@@ -151,7 +156,7 @@ export default function Writing({ onBack }) {
         <div className="word-count mono" style={{ marginTop: 10 }}>
           {wc} words {wcOk ? "— in range" : `(target ${task.minWords}–${task.maxWords})`}
         </div>
-        <textarea className="writing-textarea" value={text} onChange={(e) => editText(e.target.value)} style={{ marginTop: 12 }} />
+        <textarea className="writing-textarea" value={text} onChange={(e) => setText(e.target.value)} style={{ marginTop: 12 }} />
 
         <div className="rubric">
           <div className="section-label">Self-assess against the real grading criteria</div>

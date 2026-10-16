@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { getDb, readHistory } from "../db/sqlite";
+import { WRITING_TASKS } from "../data/writingPrompts";
+import { SPEAKING_TASKS } from "../data/speakingPrompts";
 
 const LABELS = {
   grammar_quiz: "Grammar quiz",
@@ -19,6 +21,31 @@ const CHAPTER_LABELS = { grammar: "Grammar", advanced_grammar: "Advanced grammar
 const STATUS_LABELS = { opened: "Opened", quiz_started: "Quiz started", quiz_done: "Quiz finished" };
 
 const label = (kind) => LABELS[kind] ?? kind;
+
+/** Turns stored item codes into words a person can read: "tcf1:1" becomes "Everyday message, prompt 2". */
+function itemName(kind, item) {
+  const text = String(item);
+  if (kind.startsWith("writing")) {
+    const [taskId, idx, key] = text.split(":");
+    const task = WRITING_TASKS.find((t) => t.id === taskId);
+    if (!task) return text;
+    if (kind === "writing_rubric") return `${task.title}, self-check: ${key}`;
+    return idx === undefined ? task.title : `${task.title}, prompt ${Number(idx) + 1}`;
+  }
+  if (kind.startsWith("speaking")) {
+    const [taskId, idx, key] = text.split(":");
+    const task = SPEAKING_TASKS.find((t) => t.id === taskId);
+    if (!task) return text;
+    if (kind === "speaking_rubric") return `${task.title}, self-check: ${key}`;
+    return `${task.title}, prompt ${Number(idx) + 1}`;
+  }
+  if (kind.endsWith("grammar_quiz")) {
+    const [chapter, q] = text.split(":");
+    return `Chapter ${chapter}, question ${q}`;
+  }
+  if (kind === "listening" || kind === "mock_listening") return `Word ${text}`;
+  return text;
+}
 const when = (iso) => new Date(iso).toLocaleString();
 const percent = (right, graded) => (graded ? `${Math.round((100 * right) / graded)}%` : "—");
 
@@ -99,7 +126,7 @@ export default function History({ onBack }) {
             {data.writing.map((w) => (
               <li key={w.id}>
                 <button className="history-toggle" onClick={() => setOpen(open === w.id ? null : w.id)}>
-                  <span>{when(w.at)} · {w.item}</span>
+                  <span>{when(w.at)} · {itemName("writing", w.item)}</span>
                 </button>
                 {open === w.id && <p className="history-text">{w.text || "(empty)"}</p>}
               </li>
@@ -114,7 +141,7 @@ export default function History({ onBack }) {
           <ul className="history-list">
             {data.drafts.map((d) => (
               <li key={`${d.kind}-${d.item}`}>
-                <span>{label(d.kind)} · {d.item} · saved {when(d.at)}</span>
+                <span>{label(d.kind)} · {itemName(d.kind, d.item)} · saved {when(d.at)}</span>
                 {d.body?.text && <p className="history-text">{d.body.text}</p>}
               </li>
             ))}
@@ -132,7 +159,7 @@ export default function History({ onBack }) {
                 <tr key={r.id}>
                   <td>{when(r.at)}</td>
                   <td>{label(r.kind)}</td>
-                  <td>{r.item}</td>
+                  <td>{itemName(r.kind, r.item)}</td>
                   <td>{r.correct === null ? (r.answer ? "submitted" : "—") : r.correct ? "right" : "wrong"}</td>
                 </tr>
               ))}
